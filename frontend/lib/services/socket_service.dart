@@ -1,11 +1,13 @@
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
+import '../config.dart';
+
 class SocketService {
   static late IO.Socket socket;
 
   static void connect() {
     socket = IO.io(
-      'http://localhost:8000',
+      AppConfig.serverUrl,
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
@@ -75,6 +77,10 @@ class SocketService {
 
   static void nextSlide(String pin) {
     socket.emit('next-slide', {'pin': pin});
+  }
+
+  static void resetScores(String pin) {
+    socket.emit('reset-scores', {'pin': pin});
   }
 
   static void listenError(Function(String) callback) {

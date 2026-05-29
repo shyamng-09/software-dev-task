@@ -14,9 +14,8 @@ const roomSchema = new mongoose.Schema(
         participants: { type: [participantSchema], default: [] },
         state: {
             type: String,
-            enum: ['waiting', 'question', 'leaderboard', 'finished', 'starting',
-                   'Question', 'Lobby', 'Leaderboard', 'Starting', 'Q&A'],
-            default: 'waiting'
+            enum: ['Lobby', 'Starting', 'Question', 'Leaderboard', 'Q&A', 'Finished'],
+            default: 'Lobby'
         },
         currentQuestion: { type: mongoose.Schema.Types.Mixed, default: null },
         currentQuestionStartTime: { type: Number, default: null }

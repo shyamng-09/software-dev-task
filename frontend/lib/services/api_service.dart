@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../config.dart';
+
 class ApiService {
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = AppConfig.serverUrl;
 
   static Future<Map<String, dynamic>> createRoom(String name) async {
     try {
