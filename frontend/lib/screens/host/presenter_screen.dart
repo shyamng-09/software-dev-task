@@ -41,9 +41,9 @@ class _PresenterScreenState extends State<PresenterScreen>
       setState(() => leaderboard = data);
     });
 
-    SocketService.listenSlideAdvanced(() {
-      if (mounted) nextSlide();
-    });
+    // Note: the host drives slide advancement directly via nextSlide().
+    // We do NOT listen for 'slide-advanced' here to avoid double-advancing
+    // when the host's own next-slide emit echoes back.
 
     SocketService.listenAnswerAggregate((counts) {
       setState(() => answerCounts = counts);
@@ -80,26 +80,24 @@ class _PresenterScreenState extends State<PresenterScreen>
     });
 
     if (slide.type == 'mcq') {
+      final nonEmptyOptions =
+          slide.options.where((o) => o.trim().isNotEmpty).toList();
       final emptyMap = <String, int>{};
-      for (final opt in slide.options) {
+      for (final opt in nonEmptyOptions) {
         emptyMap[opt] = 0;
       }
       setState(() => answerCounts = emptyMap);
 
       SocketService.sendQuestion(widget.roomPin, {
         'question': slide.content,
-        'options': slide.options,
+        'options': nonEmptyOptions,
         'correctAnswer': slide.correctAnswer,
         'timer': slide.timer,
       });
 
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          SocketService.changeState(widget.roomPin, 'Question');
-          startTimer(slide.timer);
-          _tabController.animateTo(0);
-        }
-      });
+      SocketService.changeState(widget.roomPin, 'Question');
+      startTimer(slide.timer);
+      _tabController.animateTo(0);
     } else if (slide.type == 'info') {
       SocketService.changeState(widget.roomPin, 'Lobby');
     } else if (slide.type == 'qa') {
@@ -540,8 +538,7 @@ class _LeaderboardPodium extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          SizedBox(
-            height: 220,
+          IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.center,

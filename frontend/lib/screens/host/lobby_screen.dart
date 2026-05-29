@@ -29,6 +29,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
   @override
   void initState() {
     super.initState();
+    // Re-join the socket room in case the host reconnected or navigated back.
+    SocketService.joinRoomAsHost(widget.roomPin);
     SocketService.listenUsers((data) {
       setState(() => participants = data);
     });
@@ -39,6 +41,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
   }
 
   void startNewGame() {
+    SocketService.resetScores(widget.roomPin);
     SocketService.changeState(widget.roomPin, 'Starting');
     Navigator.pushReplacement(
       context,
@@ -193,18 +196,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                SocketService.changeState(widget.roomPin, 'Starting');
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PresenterScreen(
-                      roomPin: widget.roomPin,
-                      slides: widget.slides,
-                    ),
-                  ),
-                );
-              },
+              onPressed: startNewGame,
               child: const Padding(
                 padding: EdgeInsets.all(15),
                 child: Text('Start Game', style: TextStyle(fontSize: 18)),

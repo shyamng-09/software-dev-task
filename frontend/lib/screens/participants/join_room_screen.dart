@@ -28,10 +28,21 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
   int earnedScore = 0;
   bool? lastAnswerCorrect;
   List<dynamic> leaderboard = [];
+  int _qaSessionKey = 0; // incremented each time a Q&A slide starts
 
   @override
   void initState() {
     super.initState();
+
+    SocketService.listenJoined((data) {
+      if (!mounted) return;
+      final roomState = data['state'] as String? ?? 'Lobby';
+      setState(() {
+        hasJoined = true;
+        joinMessage = 'Joined successfully';
+        currentState = roomState;
+      });
+    });
 
     SocketService.listenState((state) {
       setState(() {
@@ -40,6 +51,9 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
           answered = false;
           lastAnswerCorrect = null;
           earnedScore = 0;
+        }
+        if (state == 'Q&A') {
+          _qaSessionKey++;
         }
       });
     });
@@ -152,11 +166,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
                   final response = await ApiService.joinRoom(pin);
                   if (response['success'] == true) {
                     SocketService.joinRoom(pin, nickname: nickname);
-                    setState(() {
-                      hasJoined = true;
-                      joinMessage = 'Joined successfully';
-                      currentState = 'Lobby';
-                    });
+                    // State is set via the 'joined-successfully' socket event
                   } else {
                     setState(() {
                       joinMessage = response['message'] ?? 'Room not found';
@@ -345,6 +355,7 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
             ],
             if (hasJoined && currentState == 'Q&A')
               _QaSubmitPanel(
+                key: ValueKey(_qaSessionKey),
                 pin: pinController.text.trim(),
                 nickname: nameController.text.trim(),
               ),
@@ -359,7 +370,7 @@ class _QaSubmitPanel extends StatefulWidget {
   final String pin;
   final String nickname;
 
-  const _QaSubmitPanel({required this.pin, required this.nickname});
+  const _QaSubmitPanel({super.key, required this.pin, required this.nickname});
 
   @override
   State<_QaSubmitPanel> createState() => _QaSubmitPanelState();

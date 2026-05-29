@@ -54,7 +54,7 @@ const socketHandler = (io) => {
         if (!pin || !question) return;
         const room = await Room.findOne({ pin });
         if (!room) return;
-        room.state = "question";
+        room.state = "Question";
         room.currentQuestion = question;
         room.currentQuestionStartTime = Date.now();
         room.participants.forEach((p) => { p.lastAnswer = null; });
@@ -71,18 +71,22 @@ const socketHandler = (io) => {
         const room = await Room.findOne({ pin });
         if (!room) return;
         if (!room.currentQuestion) return;
+        // Find participant by socket.id; also accept a nickname fallback sent by client
         const participant = room.participants.find(
           (p) => p.socketId === socket.id
         );
-        if (!participant) return;
-        if (participant.lastAnswer != null) return;
+        if (!participant) {
+          socket.emit("error-message", "You are not in this room");
+          return;
+        }
+        if (participant.lastAnswer != null) return; // already answered
         const correctAnswer = room.currentQuestion.correctAnswer;
         const isCorrect = answer === correctAnswer;
         let earnedScore = 0;
         participant.lastAnswer = answer;
         if (isCorrect) {
           const timeTaken = Date.now() - room.currentQuestionStartTime;
-          const duration = (room.currentQuestion.timer || 20) * 1000;
+          const duration = (room.currentQuestion.timer || 10) * 1000;
           earnedScore = Math.max(
             1000 - Math.floor((timeTaken / duration) * 1000),
             100
@@ -116,10 +120,15 @@ const socketHandler = (io) => {
     socket.on("change-state", async (data) => {
       try {
         const { pin, state } = data;
+        const validStates = ['Lobby', 'Starting', 'Question', 'Leaderboard', 'Q&A', 'Finished'];
+        if (!validStates.includes(state)) {
+          socket.emit("error-message", `Invalid state: ${state}`);
+          return;
+        }
         const room = await Room.findOne({ pin });
         if (!room) return;
         room.state = state;
-        await room.save({ validateBeforeSave: false });
+        await room.save();
         io.to(pin).emit("state-changed", state);
       } catch (error) {
         console.error("change-state error:", error.message);
@@ -145,10 +154,29 @@ const socketHandler = (io) => {
       }
     });
 
+    socket.on("reset-scores", async (data) => {
+      try {
+        const pin = data.pin || data;
+        const room = await Room.findOne({ pin });
+        if (!room) return;
+        room.participants.forEach((p) => {
+          p.score = 0;
+          p.lastAnswer = null;
+        });
+        room.currentQuestion = null;
+        room.currentQuestionStartTime = null;
+        await room.save();
+        io.to(pin).emit("participants-updated", room.participants);
+      } catch (error) {
+        console.error("reset-scores error:", error.message);
+      }
+    });
+
     socket.on("next-slide", async (data) => {
       try {
         const pin = data.pin || data;
-        io.to(pin).emit("slide-advanced");
+        // Broadcast only to other sockets in the room (not back to the host)
+        socket.to(pin).emit("slide-advanced");
       } catch (error) {
         console.error("next-slide error:", error.message);
       }
